@@ -68,6 +68,16 @@ export default async function handler(req) {
             }
 
             const sizeKb = Math.round(Buffer.byteLength(html, 'utf8') / 1024);
+
+            // Si el snapshot es idéntico al último, no duplicar en Blobs
+            const latestMeta = await store.get(KEY_LATEST, { type: 'json' });
+            if (latestMeta && latestMeta.url === (url || '') && latestMeta.size_kb === sizeKb) {
+                const latestSnap = await store.get(`snap/${latestMeta.id}`, { type: 'json' });
+                if (latestSnap && latestSnap.html === html) {
+                    return jsonResponse({ id: latestMeta.id, sizeKb, unchanged: true }, 200);
+                }
+            }
+
             const createdAt = new Date().toISOString();
 
             const index = (await store.get(KEY_INDEX, { type: 'json' })) || {

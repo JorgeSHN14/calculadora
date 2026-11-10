@@ -39,6 +39,10 @@ app.post('/api/snapshot', (req, res) => {
             viewportH: viewportHeight || 1080,
         });
 
+        if (result.unchanged) {
+            return res.json({ id: result.id, sizeKb: result.sizeKb, unchanged: true });
+        }
+
         const ts = new Date().toLocaleTimeString('es-EC');
         console.log(`[${ts}] 📸 Snapshot #${result.id}  ${result.sizeKb} KB  ${title || ''}`);
         console.log(`       ${url}`);

@@ -41,11 +41,13 @@
 
     // ═══════════ ESTADO ═══════════
 
-    var _timer     = null;
-    var _busy      = false;
-    var _lastSend  = 0;
-    var _lastUrl   = location.href;
-    var _snapCount = 0;
+    var _timer        = null;
+    var _busy         = false;
+    var _lastSend     = 0;
+    var _lastUrl      = location.href;
+    var _lastSentHtml = null;
+    var _lastSentUrl  = null;
+    var _snapCount    = 0;
 
     function log() {
         var args = ['%c[Mirror]', 'color:#00bcd4;font-weight:bold'];
@@ -450,12 +452,19 @@
 
         try {
             var html = buildSnapshot();
+            var currentUrl = location.href;
+
+            if (_lastSentHtml !== null && html === _lastSentHtml && currentUrl === _lastSentUrl) {
+                _busy = false;
+                log('⏱️ Verificación (5s): Sin diferencias con el snapshot previo');
+                return;
+            }
 
             _fetch(SERVER + '/api/snapshot', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: _JSON.stringify({
-                    url:            location.href,
+                    url:            currentUrl,
                     title:          document.title,
                     html:           html,
                     viewportWidth:  innerWidth,
@@ -465,8 +474,10 @@
             .then(function (resp) {
                 _lastSend = _Date.now();
                 if (resp.ok) {
+                    _lastSentHtml = html;
+                    _lastSentUrl  = currentUrl;
                     resp.json().then(function (data) {
-                        log('✅ #' + id + ' enviado (' + data.sizeKb + ' KB)');
+                        log('✅ #' + id + ' enviado (' + data.sizeKb + ' KB) [Diferencias detectadas]');
                     });
                 } else {
                     log('⚠️ #' + id + ' HTTP ' + resp.status);

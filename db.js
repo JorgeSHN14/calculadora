@@ -76,8 +76,14 @@ const stmts = {
 module.exports = {
     /**
      * Guarda un snapshot y retorna su id.
+     * Si no hay cambios respecto al último, retorna el id existente sin duplicar.
      */
     saveSnapshot({ url, title, html, viewportW, viewportH }) {
+        const latest = stmts.latest.get();
+        if (latest && latest.html === html && latest.url === (url || '')) {
+            return { id: latest.id, sizeKb: latest.size_kb, unchanged: true };
+        }
+
         const sizeKb = Math.round(Buffer.byteLength(html, 'utf8') / 1024);
         const info = stmts.insert.run({ url, title: title || '', html, viewportW: viewportW || 1920, viewportH: viewportH || 1080, sizeKb });
 

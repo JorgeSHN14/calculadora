@@ -31,6 +31,7 @@
     // ─── Estado ───
     let autoRefresh  = true;
     let currentId    = null;
+    let currentHtml  = null;
     let pollTimer    = null;
     let viewportMode = 'auto'; // 'auto' | 'mobile' | 'tablet' | 'desktop'
 
@@ -321,7 +322,12 @@
         $empty.style.display = 'none';
         $frame.style.display = 'block';
 
-        $frame.srcdoc = snap.html;
+        // Solo recargar el iframe si hay diferencias reales entre lo previo y lo nuevo
+        const hasDiff = currentHtml !== snap.html;
+        if (hasDiff) {
+            currentHtml = snap.html;
+            $frame.srcdoc = snap.html;
+        }
 
         const cleanTitle = (snap.title || '').trim();
         document.title = cleanTitle || 'Aula Virtual';
@@ -336,7 +342,9 @@
         $snapInfo.textContent = `#${snap.id} · ${snap.size_kb || '?'} KB`;
 
         setStatus('online', 'Conectado');
-        toast(`📸 Snapshot #${snap.id} cargado`, 'success');
+        if (hasDiff) {
+            toast(`📸 Snapshot #${snap.id} cargado`, 'success');
+        }
     }
 
     // ═══════════════════════════════════════════
