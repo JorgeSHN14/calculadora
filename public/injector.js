@@ -45,7 +45,7 @@
     var _busy         = false;
     var _lastSend     = 0;
     var _lastUrl      = location.href;
-    var _lastSentHtml = null;
+    var _lastSentKey  = null;
     var _lastSentUrl  = null;
     var _snapCount    = 0;
 
@@ -250,34 +250,71 @@
     // ═══════════════════════════════════════════
 
     function copyFormState(clone) {
-        var liveInputs  = document.querySelectorAll('input');
-        var cloneInputs = clone.querySelectorAll('input');
-        for (var i = 0; i < liveInputs.length && i < cloneInputs.length; i++) {
-            var li = liveInputs[i];
-            var ci = cloneInputs[i];
-            if (li.type === 'checkbox' || li.type === 'radio') {
-                if (li.checked) ci.setAttribute('checked', '');
-                else ci.removeAttribute('checked');
-            } else if (li.type !== 'file' && li.type !== 'password') {
-                ci.setAttribute('value', li.value);
+        try {
+            var liveInputs  = document.querySelectorAll('input');
+            var cloneInputs = clone.querySelectorAll('input');
+            for (var i = 0; i < liveInputs.length && i < cloneInputs.length; i++) {
+                var li = liveInputs[i];
+                var ci = cloneInputs[i];
+                if (!li || !ci) continue;
+                if (li.type === 'checkbox' || li.type === 'radio') {
+                    if (li.checked) {
+                        ci.setAttribute('checked', '');
+                        ci.checked = true;
+                    } else {
+                        ci.removeAttribute('checked');
+                        ci.checked = false;
+                    }
+                } else if (li.type !== 'file' && li.type !== 'password') {
+                    ci.setAttribute('value', li.value || '');
+                }
             }
-        }
+        } catch (e) {}
 
-        var liveTa  = document.querySelectorAll('textarea');
-        var cloneTa = clone.querySelectorAll('textarea');
-        for (var j = 0; j < liveTa.length && j < cloneTa.length; j++) {
-            cloneTa[j].textContent = liveTa[j].value;
-        }
-
-        var liveSel  = document.querySelectorAll('select');
-        var cloneSel = clone.querySelectorAll('select');
-        for (var k = 0; k < liveSel.length && k < cloneSel.length; k++) {
-            var opts = cloneSel[k].options;
-            for (var o = 0; o < opts.length && o < liveSel[k].options.length; o++) {
-                if (liveSel[k].options[o].selected) opts[o].setAttribute('selected', '');
-                else opts[o].removeAttribute('selected');
+        try {
+            var liveTa  = document.querySelectorAll('textarea');
+            var cloneTa = clone.querySelectorAll('textarea');
+            for (var j = 0; j < liveTa.length && j < cloneTa.length; j++) {
+                if (liveTa[j] && cloneTa[j]) {
+                    cloneTa[j].textContent = liveTa[j].value || '';
+                }
             }
-        }
+        } catch (e) {}
+
+        try {
+            var liveSel  = document.querySelectorAll('select');
+            var cloneSel = clone.querySelectorAll('select');
+            for (var k = 0; k < liveSel.length && k < cloneSel.length; k++) {
+                if (!liveSel[k] || !cloneSel[k]) continue;
+                var opts = cloneSel[k].options;
+                var liveOpts = liveSel[k].options;
+                if (!opts || !liveOpts) continue;
+                for (var o = 0; o < opts.length && o < liveOpts.length; o++) {
+                    if (!opts[o] || !liveOpts[o]) continue;
+                    if (liveOpts[o].selected) opts[o].setAttribute('selected', '');
+                    else opts[o].removeAttribute('selected');
+                }
+            }
+        } catch (e) {}
+    }
+
+    function inlineIframes(clone) {
+        try {
+            var liveIframes  = document.querySelectorAll('iframe');
+            var cloneIframes = clone.querySelectorAll('iframe');
+            for (var f = 0; f < liveIframes.length && f < cloneIframes.length; f++) {
+                try {
+                    var iframeDoc = liveIframes[f].contentDocument;
+                    if (iframeDoc && iframeDoc.documentElement) {
+                        var iframeHtml = iframeDoc.documentElement.outerHTML;
+                        if (iframeHtml && iframeHtml.length > 50) {
+                            cloneIframes[f].removeAttribute('src');
+                            cloneIframes[f].setAttribute('srcdoc', '<!DOCTYPE html>\n' + iframeHtml);
+                        }
+                    }
+                } catch (e) {}
+            }
+        } catch (e) {}
     }
 
     // ═══════════════════════════════════════════
@@ -344,6 +381,9 @@
 
         // ── 4. Copiar estado de formularios ──
         copyFormState(clone);
+
+        // ── 4.1. Inlinear iframes (lecciones, quizzes, SCORM) ──
+        inlineIframes(clone);
 
         // ── 5. Capturar canvas como imágenes estáticas ──
         captureCanvasElements(clone);
@@ -439,13 +479,35 @@
     }
 
     // ═══════════════════════════════════════════
+    //  NORMALIZACIÓN DE DIFFS (ignora relojes)
+    // ═══════════════════════════════════════════
+
+    function getDiffKey(html) {
+        if (!html) return '';
+        return html
+            .replace(/id="time_running_value"[^>]*>[\s\S]*?<\/span>/gi, 'id="time_running_value">TIMER</span>')
+            .replace(/id="quiz_time_running"[^>]*>[\s\S]*?<\/div>/gi, 'id="quiz_time_running">TIMER</div>')
+            .replace(/class="[^"]*time_running[^"]*"[^>]*>[\s\S]*?<\/span>/gi, 'class="time_running">TIMER</span>')
+            .replace(/class="[^"]*quiz_timer[^"]*"[^>]*>[\s\S]*?<\/span>/gi, 'class="quiz_timer">TIMER</span>');
+    }
+
+    // ═══════════════════════════════════════════
     //  ENVÍO AL SERVIDOR LOCAL
     // ═══════════════════════════════════════════
 
-    function sendSnapshot() {
+    function sendSnapshot(force) {
         if (_busy) return;
         var now = _Date.now();
-        if (now - _lastSend < COOLDOWN_MS) return;
+        var sinceLast = now - _lastSend;
+        if (!force && sinceLast < COOLDOWN_MS) {
+            if (_timer === null) {
+                _timer = _setTimeout(function () {
+                    _timer = null;
+                    sendSnapshot(false);
+                }, COOLDOWN_MS - sinceLast + 50);
+            }
+            return;
+        }
 
         _busy = true;
         var id = ++_snapCount;
@@ -454,7 +516,8 @@
             var html = buildSnapshot();
             var currentUrl = location.href;
 
-            if (_lastSentHtml !== null && html === _lastSentHtml && currentUrl === _lastSentUrl) {
+            var currentKey = getDiffKey(html);
+            if (!force && _lastSentKey !== null && currentKey === _lastSentKey && currentUrl === _lastSentUrl) {
                 _busy = false;
                 log('⏱️ Verificación (5s): Sin diferencias con el snapshot previo');
                 return;
@@ -474,10 +537,10 @@
             .then(function (resp) {
                 _lastSend = _Date.now();
                 if (resp.ok) {
-                    _lastSentHtml = html;
-                    _lastSentUrl  = currentUrl;
+                    _lastSentKey = currentKey;
+                    _lastSentUrl = currentUrl;
                     resp.json().then(function (data) {
-                        log('✅ #' + id + ' enviado (' + data.sizeKb + ' KB) [Diferencias detectadas]');
+                        log('✅ #' + id + ' enviado (' + data.sizeKb + ' KB) [' + (force ? 'FORZADO/Navegación' : 'Diferencias') + ']');
                     });
                 } else {
                     log('⚠️ #' + id + ' HTTP ' + resp.status);
@@ -501,14 +564,12 @@
     // ═══════════════════════════════════════════
 
     function scheduleCapture() {
-        _clearTimeout(_timer);
-        _timer = _setTimeout(function () {
-            if (window.requestIdleCallback) {
-                requestIdleCallback(function () { sendSnapshot(); }, { timeout: 5000 });
-            } else {
-                sendSnapshot();
-            }
-        }, DEBOUNCE_MS);
+        if (_timer === null) {
+            _timer = _setTimeout(function () {
+                _timer = null;
+                sendSnapshot(false);
+            }, DEBOUNCE_MS);
+        }
     }
 
     var observer = new MutationObserver(function (mutations) {
@@ -530,22 +591,32 @@
         attributeFilter: ['class', 'style', 'src', 'href', 'hidden'],
     });
 
+    // Detección rápida de cambios en radios/inputs en quizzes
+    document.addEventListener('change', function (e) {
+        if (e && e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
+            scheduleCapture();
+        }
+    }, true);
+
+    // Detección ágil de navegación SPA (cada 1s)
     _setInterval(function () {
         if (location.href !== _lastUrl) {
             _lastUrl = location.href;
-            scheduleCapture();
+            log('🔗 Navegación detectada:', _lastUrl);
+            sendSnapshot(true);
         }
-    }, URL_POLL_MS);
+    }, 1000);
 
     // Ejecución periódica automática cada 5 segundos
     _setInterval(function () {
-        if (!_busy) scheduleCapture();
+        if (!_busy) sendSnapshot(false);
     }, INTERVAL_MS);
 
-    if (document.readyState === 'complete') {
-        scheduleCapture();
+    if (document.readyState === 'interactive' || document.readyState === 'complete') {
+        sendSnapshot(true);
     } else {
-        window.addEventListener('load', function () { scheduleCapture(); });
+        window.addEventListener('DOMContentLoaded', function () { sendSnapshot(true); });
+        window.addEventListener('load', function () { sendSnapshot(true); });
     }
 
     log('─────────────────────────────────────');

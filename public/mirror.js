@@ -29,11 +29,12 @@
     const $vpBtns     = document.querySelectorAll('.vp-btn');
 
     // ─── Estado ───
-    let autoRefresh  = true;
-    let currentId    = null;
-    let currentHtml  = null;
-    let pollTimer    = null;
-    let viewportMode = 'auto'; // 'auto' | 'mobile' | 'tablet' | 'desktop'
+    let autoRefresh    = true;
+    let currentId      = null;
+    let currentHtml    = null;
+    let currentDiffKey = null;
+    let pollTimer      = null;
+    let viewportMode   = 'auto'; // 'auto' | 'mobile' | 'tablet' | 'desktop'
 
     // ─── Bookmarklet ───
     $bookmark.href = `javascript:void(document.head.appendChild(Object.assign(document.createElement('script'),{src:'${API}/injector.js?t='+Date.now()})))`;
@@ -315,6 +316,15 @@
     //  Renderizado
     // ═══════════════════════════════════════════
 
+    function getDiffKey(html) {
+        if (!html) return '';
+        return html
+            .replace(/id="time_running_value"[^>]*>[\s\S]*?<\/span>/gi, 'id="time_running_value">TIMER</span>')
+            .replace(/id="quiz_time_running"[^>]*>[\s\S]*?<\/div>/gi, 'id="quiz_time_running">TIMER</div>')
+            .replace(/class="[^"]*time_running[^"]*"[^>]*>[\s\S]*?<\/span>/gi, 'class="time_running">TIMER</span>')
+            .replace(/class="[^"]*quiz_timer[^"]*"[^>]*>[\s\S]*?<\/span>/gi, 'class="quiz_timer">TIMER</span>');
+    }
+
     function renderSnapshot(snap) {
         if (!snap || !snap.html) return;
         currentId = snap.id;
@@ -322,10 +332,12 @@
         $empty.style.display = 'none';
         $frame.style.display = 'block';
 
-        // Solo recargar el iframe si hay diferencias reales entre lo previo y lo nuevo
-        const hasDiff = currentHtml !== snap.html;
+        // Solo recargar el iframe si hay diferencias reales (ignorando el reloj de cuenta regresiva)
+        const snapDiffKey = getDiffKey(snap.html);
+        const hasDiff = currentDiffKey !== snapDiffKey || !currentHtml;
         if (hasDiff) {
             currentHtml = snap.html;
+            currentDiffKey = snapDiffKey;
             $frame.srcdoc = snap.html;
         }
 
