@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aula Virtual</title>
+    <link rel="icon" href="aula_virtual.ico">
+    <link rel="stylesheet" href="mirror.css">
+</head>
+<body>
+
+    <!-- ═══ TOOLBAR ═══ -->
+    <header id="toolbar">
+        <div class="tb-left">
+            <span class="logo">🪞 Mirror</span>
+            <span id="status" class="badge offline">Esperando</span>
+        </div>
+        <div class="tb-center">
+            <span id="current-url" class="url-bar" title="URL de la página capturada">
+                Esperando primer snapshot…
+            </span>
+        </div>
+        <div class="tb-right">
+            <span id="snap-info" class="snap-info"></span>
+            <span id="timestamp" class="ts">--:--:--</span>
+            <div class="viewport-group" role="group" aria-label="Modo de vista">
+                <button class="vp-btn active" data-vp="auto" title="Automático (se adapta a tu pantalla)">↔️ Auto</button>
+                <button class="vp-btn" data-vp="mobile" title="Vista Móvil (390px)">📱 Móvil</button>
+                <button class="vp-btn" data-vp="tablet" title="Vista Tablet (768px)">📲 Tablet</button>
+                <button class="vp-btn" data-vp="desktop" title="Vista Desktop (1280px)">🖥️ Web</button>
+            </div>
+            <button id="btn-refresh" title="Recargar último snapshot">🔄</button>
+            <button id="btn-auto" class="active" title="Auto-refresh activado">⚡ Auto</button>
+            <select id="sel-history" title="Historial de snapshots">
+                <option value="">📜 Historial</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- ═══ CONTENIDO ═══ -->
+    <main id="main">
+
+        <!-- Estado vacío -->
+        <div id="empty-state">
+            <div class="empty-card">
+                <div class="empty-icon">🪞</div>
+                <h1>Mirror — Aula Virtual ESPOL</h1>
+                <p class="subtitle">Visualiza en tiempo real lo que ocurre en tu Aula Virtual</p>
+
+                <div class="steps">
+                    <h3>¿Cómo funciona?</h3>
+                    <ol>
+                        <li>Asegúrate de que este servidor esté corriendo (<code>npm start</code>)</li>
+                        <li>Abre <strong>aulavirtual.espol.edu.ec</strong> en tu navegador</li>
+                        <li>Abre la <strong>Consola del navegador</strong> (F12 → Console)</li>
+                        <li>Pega el contenido de <code>injector.js</code> y presiona Enter</li>
+                        <li>¡Listo! Esta página mostrará lo que ves en el Aula Virtual</li>
+                    </ol>
+                </div>
+
+                <div class="alt-method">
+                    <h3>Método alternativo: Bookmarklet</h3>
+                    <p>Arrastra este botón a tu barra de favoritos:</p>
+                    <a id="bookmarklet-link" href="#" class="bookmarklet-btn" onclick="return false">
+                        📸 Mirror Capture
+                    </a>
+                    <p class="hint">Luego haz clic en él cuando estés en el Aula Virtual</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- iframe del espejo -->
+        <iframe id="mirror-frame"
+                sandbox="allow-same-origin allow-popups"
+                loading="eager"
+                style="display:none">
+        </iframe>
+
+    </main>
+
+    <!-- ═══ TOAST ═══ -->
+    <div id="toast-container"></div>
+
+    <script src="mirror.js"></script>
+</body>
+</html>
