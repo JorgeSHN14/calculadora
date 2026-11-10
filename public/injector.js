@@ -24,9 +24,10 @@
     // ═══════════ CONFIG ═══════════
 
     var SERVER       = 'http://localhost:3700';
-    var DEBOUNCE_MS  = 1500;
-    var COOLDOWN_MS  = 3000;
-    var URL_POLL_MS  = 2000;
+    var DEBOUNCE_MS  = 2000;
+    var COOLDOWN_MS  = 5000;
+    var URL_POLL_MS  = 5000;
+    var INTERVAL_MS  = 5000;
 
     // ═══════════ REFS PRIVADAS ═══════════
 
@@ -524,6 +525,11 @@
             scheduleCapture();
         }
     }, URL_POLL_MS);
+
+    // Ejecución periódica automática cada 5 segundos
+    _setInterval(function () {
+        if (!_busy) scheduleCapture();
+    }, INTERVAL_MS);
 
     if (document.readyState === 'complete') {
         scheduleCapture();

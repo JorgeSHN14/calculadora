@@ -6,7 +6,7 @@
 
     const API        = window.location.origin;
     const IS_LOCAL   = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
-    const POLL_MS    = IS_LOCAL ? 2000 : 4500;
+    const POLL_MS    = 5000;
     const ADMIN_MODE = new URLSearchParams(window.location.search).has('admin');
 
     if (ADMIN_MODE) {
