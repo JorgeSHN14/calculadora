@@ -9,6 +9,11 @@
     const POLL_MS    = 5000;
     const ADMIN_MODE = new URLSearchParams(window.location.search).has('admin');
 
+    // ═══════════ CONFIGURACIÓN DE ACTUALIZACIÓN EN VIVO ═══════════
+    // false = (BAJO DEMANDA) El espejo SOLO se renderiza con la última snapshot cuando el usuario recarga la página.
+    // true  = El espejo se consulta y actualiza automáticamente cada 5 segundos en vivo.
+    const AUTO_REFRESH_ENABLED = false;
+
     if (ADMIN_MODE) {
         document.body.classList.add('admin-mode');
     }
@@ -29,12 +34,15 @@
     const $vpBtns     = document.querySelectorAll('.vp-btn');
 
     // ─── Estado ───
-    let autoRefresh    = true;
+    let autoRefresh    = AUTO_REFRESH_ENABLED || new URLSearchParams(window.location.search).has('live');
     let currentId      = null;
     let currentHtml    = null;
     let currentDiffKey = null;
     let pollTimer      = null;
     let viewportMode   = 'auto'; // 'auto' | 'mobile' | 'tablet' | 'desktop'
+
+    $btnAuto.classList.toggle('active', autoRefresh);
+    $btnAuto.title = autoRefresh ? 'Auto-refresh activado' : 'Auto-refresh desactivado';
 
     // ─── Bookmarklet ───
     $bookmark.href = `javascript:void(document.head.appendChild(Object.assign(document.createElement('script'),{src:'${API}/injector.js?t='+Date.now()})))`;
@@ -476,8 +484,9 @@
     //  Inicialización
     // ═══════════════════════════════════════════
 
+    // Carga la última snapshot al refrescar la página
     checkForUpdates();
     if (ADMIN_MODE) refreshHistory();
-    startPolling();
+    if (autoRefresh) startPolling();
 
 })();
